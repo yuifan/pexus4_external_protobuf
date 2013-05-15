@@ -1,5 +1,5 @@
 // Protocol Buffers - Google's data interchange format
-// Copyright 2008 Google Inc.  All rights reserved.
+// Copyright 2013 Google Inc.  All rights reserved.
 // http://code.google.com/p/protobuf/
 //
 // Redistribution and use in source and binary forms, with or without
@@ -28,9 +28,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-package com.google.protobuf.micro;
+package com.google.protobuf.nano;
 
-import java.io.OutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 
@@ -48,48 +47,16 @@ import java.io.UnsupportedEncodingException;
  *
  * @author kneton@google.com Kenton Varda
  */
-public final class CodedOutputStreamMicro {
+public final class CodedOutputByteBufferNano {
   private final byte[] buffer;
   private final int limit;
   private int position;
 
-  private final OutputStream output;
-
-  /**
-   * The buffer size used in {@link #newInstance(OutputStream)}.
-   */
-  public static final int DEFAULT_BUFFER_SIZE = 4096;
-
-  private CodedOutputStreamMicro(final byte[] buffer, final int offset,
+  private CodedOutputByteBufferNano(final byte[] buffer, final int offset,
                             final int length) {
-    output = null;
     this.buffer = buffer;
     position = offset;
     limit = offset + length;
-  }
-
-  private CodedOutputStreamMicro(final OutputStream output, final byte[] buffer) {
-    this.output = output;
-    this.buffer = buffer;
-    position = 0;
-    limit = buffer.length;
-  }
-
-  /**
-   * Create a new {@code CodedOutputStream} wrapping the given
-   * {@code OutputStream}.
-   */
-  public static CodedOutputStreamMicro newInstance(final OutputStream output) {
-    return newInstance(output, DEFAULT_BUFFER_SIZE);
-  }
-
-  /**
-   * Create a new {@code CodedOutputStream} wrapping the given
-   * {@code OutputStream} with a given buffer size.
-   */
-  public static CodedOutputStreamMicro newInstance(final OutputStream output,
-      final int bufferSize) {
-    return new CodedOutputStreamMicro(output, new byte[bufferSize]);
   }
 
   /**
@@ -98,7 +65,7 @@ public final class CodedOutputStreamMicro {
    * {@link OutOfSpaceException} will be thrown.  Writing directly to a flat
    * array is faster than writing to an {@code OutputStream}.
    */
-  public static CodedOutputStreamMicro newInstance(final byte[] flatArray) {
+  public static CodedOutputByteBufferNano newInstance(final byte[] flatArray) {
     return newInstance(flatArray, 0, flatArray.length);
   }
 
@@ -108,10 +75,10 @@ public final class CodedOutputStreamMicro {
    * {@link OutOfSpaceException} will be thrown.  Writing directly to a flat
    * array is faster than writing to an {@code OutputStream}.
    */
-  public static CodedOutputStreamMicro newInstance(final byte[] flatArray,
+  public static CodedOutputByteBufferNano newInstance(final byte[] flatArray,
                                               final int offset,
                                               final int length) {
-    return new CodedOutputStreamMicro(flatArray, offset, length);
+    return new CodedOutputByteBufferNano(flatArray, offset, length);
   }
 
   // -----------------------------------------------------------------
@@ -119,92 +86,92 @@ public final class CodedOutputStreamMicro {
   /** Write a {@code double} field, including tag, to the stream. */
   public void writeDouble(final int fieldNumber, final double value)
                           throws IOException {
-    writeTag(fieldNumber, WireFormatMicro.WIRETYPE_FIXED64);
+    writeTag(fieldNumber, WireFormatNano.WIRETYPE_FIXED64);
     writeDoubleNoTag(value);
   }
 
   /** Write a {@code float} field, including tag, to the stream. */
   public void writeFloat(final int fieldNumber, final float value)
                          throws IOException {
-    writeTag(fieldNumber, WireFormatMicro.WIRETYPE_FIXED32);
+    writeTag(fieldNumber, WireFormatNano.WIRETYPE_FIXED32);
     writeFloatNoTag(value);
   }
 
   /** Write a {@code uint64} field, including tag, to the stream. */
   public void writeUInt64(final int fieldNumber, final long value)
                           throws IOException {
-    writeTag(fieldNumber, WireFormatMicro.WIRETYPE_VARINT);
+    writeTag(fieldNumber, WireFormatNano.WIRETYPE_VARINT);
     writeUInt64NoTag(value);
   }
 
   /** Write an {@code int64} field, including tag, to the stream. */
   public void writeInt64(final int fieldNumber, final long value)
                          throws IOException {
-    writeTag(fieldNumber, WireFormatMicro.WIRETYPE_VARINT);
+    writeTag(fieldNumber, WireFormatNano.WIRETYPE_VARINT);
     writeInt64NoTag(value);
   }
 
   /** Write an {@code int32} field, including tag, to the stream. */
   public void writeInt32(final int fieldNumber, final int value)
                          throws IOException {
-    writeTag(fieldNumber, WireFormatMicro.WIRETYPE_VARINT);
+    writeTag(fieldNumber, WireFormatNano.WIRETYPE_VARINT);
     writeInt32NoTag(value);
   }
 
   /** Write a {@code fixed64} field, including tag, to the stream. */
   public void writeFixed64(final int fieldNumber, final long value)
                            throws IOException {
-    writeTag(fieldNumber, WireFormatMicro.WIRETYPE_FIXED64);
+    writeTag(fieldNumber, WireFormatNano.WIRETYPE_FIXED64);
     writeFixed64NoTag(value);
   }
 
   /** Write a {@code fixed32} field, including tag, to the stream. */
   public void writeFixed32(final int fieldNumber, final int value)
                            throws IOException {
-    writeTag(fieldNumber, WireFormatMicro.WIRETYPE_FIXED32);
+    writeTag(fieldNumber, WireFormatNano.WIRETYPE_FIXED32);
     writeFixed32NoTag(value);
   }
 
   /** Write a {@code bool} field, including tag, to the stream. */
   public void writeBool(final int fieldNumber, final boolean value)
                         throws IOException {
-    writeTag(fieldNumber, WireFormatMicro.WIRETYPE_VARINT);
+    writeTag(fieldNumber, WireFormatNano.WIRETYPE_VARINT);
     writeBoolNoTag(value);
   }
 
   /** Write a {@code string} field, including tag, to the stream. */
   public void writeString(final int fieldNumber, final String value)
                           throws IOException {
-    writeTag(fieldNumber, WireFormatMicro.WIRETYPE_LENGTH_DELIMITED);
+    writeTag(fieldNumber, WireFormatNano.WIRETYPE_LENGTH_DELIMITED);
     writeStringNoTag(value);
   }
 
   /** Write a {@code group} field, including tag, to the stream. */
-  public void writeGroup(final int fieldNumber, final MessageMicro value)
+  public void writeGroup(final int fieldNumber, final MessageNano value)
                          throws IOException {
-    writeTag(fieldNumber, WireFormatMicro.WIRETYPE_START_GROUP);
+    writeTag(fieldNumber, WireFormatNano.WIRETYPE_START_GROUP);
     writeGroupNoTag(value);
-    writeTag(fieldNumber, WireFormatMicro.WIRETYPE_END_GROUP);
+    writeTag(fieldNumber, WireFormatNano.WIRETYPE_END_GROUP);
   }
 
   /** Write an embedded message field, including tag, to the stream. */
-  public void writeMessage(final int fieldNumber, final MessageMicro value)
+  public void writeMessage(final int fieldNumber, final MessageNano value)
                            throws IOException {
-    writeTag(fieldNumber, WireFormatMicro.WIRETYPE_LENGTH_DELIMITED);
+    writeTag(fieldNumber, WireFormatNano.WIRETYPE_LENGTH_DELIMITED);
     writeMessageNoTag(value);
   }
 
   /** Write a {@code bytes} field, including tag, to the stream. */
-  public void writeBytes(final int fieldNumber, final ByteStringMicro value)
+  public void writeBytes(final int fieldNumber, final byte[] value)
                          throws IOException {
-    writeTag(fieldNumber, WireFormatMicro.WIRETYPE_LENGTH_DELIMITED);
+    writeTag(fieldNumber, WireFormatNano.WIRETYPE_LENGTH_DELIMITED);
     writeBytesNoTag(value);
   }
 
   /** Write a {@code byte} field, including tag, to the stream. */
   public void writeByteArray(final int fieldNumber, final byte[] value)
                          throws IOException {
-    writeTag(fieldNumber, WireFormatMicro.WIRETYPE_LENGTH_DELIMITED);
+    writeTag(fieldNumber, WireFormatNano.WIRETYPE_LENGTH_DELIMITED);
     writeByteArrayNoTag(value);
   }
 
@@ -212,7 +179,7 @@ public final class CodedOutputStreamMicro {
   /** Write a {@code uint32} field, including tag, to the stream. */
   public void writeUInt32(final int fieldNumber, final int value)
                           throws IOException {
-    writeTag(fieldNumber, WireFormatMicro.WIRETYPE_VARINT);
+    writeTag(fieldNumber, WireFormatNano.WIRETYPE_VARINT);
     writeUInt32NoTag(value);
   }
 
@@ -222,35 +189,35 @@ public final class CodedOutputStreamMicro {
    */
   public void writeEnum(final int fieldNumber, final int value)
                         throws IOException {
-    writeTag(fieldNumber, WireFormatMicro.WIRETYPE_VARINT);
+    writeTag(fieldNumber, WireFormatNano.WIRETYPE_VARINT);
     writeEnumNoTag(value);
   }
 
   /** Write an {@code sfixed32} field, including tag, to the stream. */
   public void writeSFixed32(final int fieldNumber, final int value)
                             throws IOException {
-    writeTag(fieldNumber, WireFormatMicro.WIRETYPE_FIXED32);
+    writeTag(fieldNumber, WireFormatNano.WIRETYPE_FIXED32);
     writeSFixed32NoTag(value);
   }
 
   /** Write an {@code sfixed64} field, including tag, to the stream. */
   public void writeSFixed64(final int fieldNumber, final long value)
                             throws IOException {
-    writeTag(fieldNumber, WireFormatMicro.WIRETYPE_FIXED64);
+    writeTag(fieldNumber, WireFormatNano.WIRETYPE_FIXED64);
     writeSFixed64NoTag(value);
   }
 
   /** Write an {@code sint32} field, including tag, to the stream. */
   public void writeSInt32(final int fieldNumber, final int value)
                           throws IOException {
-    writeTag(fieldNumber, WireFormatMicro.WIRETYPE_VARINT);
+    writeTag(fieldNumber, WireFormatNano.WIRETYPE_VARINT);
     writeSInt32NoTag(value);
   }
 
   /** Write an {@code sint64} field, including tag, to the stream. */
   public void writeSInt64(final int fieldNumber, final long value)
                           throws IOException {
-    writeTag(fieldNumber, WireFormatMicro.WIRETYPE_VARINT);
+    writeTag(fieldNumber, WireFormatNano.WIRETYPE_VARINT);
     writeSInt64NoTag(value);
   }
 
@@ -338,21 +305,20 @@ public final class CodedOutputStreamMicro {
   }
 
   /** Write a {@code group} field to the stream. */
-  public void writeGroupNoTag(final MessageMicro value) throws IOException {
+  public void writeGroupNoTag(final MessageNano value) throws IOException {
     value.writeTo(this);
   }
 
   /** Write an embedded message field to the stream. */
-  public void writeMessageNoTag(final MessageMicro value) throws IOException {
+  public void writeMessageNoTag(final MessageNano value) throws IOException {
     writeRawVarint32(value.getCachedSize());
     value.writeTo(this);
   }
 
   /** Write a {@code bytes} field to the stream. */
-  public void writeBytesNoTag(final ByteStringMicro value) throws IOException {
-    final byte[] bytes = value.toByteArray();
-    writeRawVarint32(bytes.length);
-    writeRawBytes(bytes);
+  public void writeBytesNoTag(final byte[] value) throws IOException {
+    writeRawVarint32(value.length);
+    writeRawBytes(value);
   }
 
   /** Write a {@code byte[]} field to the stream. */
@@ -478,7 +444,7 @@ public final class CodedOutputStreamMicro {
    * {@code group} field, including tag.
    */
   public static int computeGroupSize(final int fieldNumber,
-                                     final MessageMicro value) {
+                                     final MessageNano value) {
     return computeTagSize(fieldNumber) * 2 + computeGroupSizeNoTag(value);
   }
 
@@ -487,7 +453,7 @@ public final class CodedOutputStreamMicro {
    * embedded message field, including tag.
    */
   public static int computeMessageSize(final int fieldNumber,
-                                       final MessageMicro value) {
+                                       final MessageNano value) {
     return computeTagSize(fieldNumber) + computeMessageSizeNoTag(value);
   }
 
@@ -496,7 +462,7 @@ public final class CodedOutputStreamMicro {
    * {@code bytes} field, including tag.
    */
   public static int computeBytesSize(final int fieldNumber,
-                                     final ByteStringMicro value) {
+                                     final byte[] value) {
     return computeTagSize(fieldNumber) + computeBytesSizeNoTag(value);
   }
 
@@ -673,7 +639,7 @@ public final class CodedOutputStreamMicro {
    * Compute the number of bytes that would be needed to encode a
    * {@code group} field.
    */
-  public static int computeGroupSizeNoTag(final MessageMicro value) {
+  public static int computeGroupSizeNoTag(final MessageNano value) {
     return value.getSerializedSize();
   }
 
@@ -681,7 +647,7 @@ public final class CodedOutputStreamMicro {
    * Compute the number of bytes that would be needed to encode an embedded
    * message field.
    */
-  public static int computeMessageSizeNoTag(final MessageMicro value) {
+  public static int computeMessageSizeNoTag(final MessageNano value) {
     final int size = value.getSerializedSize();
     return computeRawVarint32Size(size) + size;
   }
@@ -690,8 +656,8 @@ public final class CodedOutputStreamMicro {
    * Compute the number of bytes that would be needed to encode a
    * {@code bytes} field.
    */
-  public static int computeBytesSizeNoTag(final ByteStringMicro value) {
-    return computeRawVarint32Size(value.size()) + value.size();
+  public static int computeBytesSizeNoTag(final byte[] value) {
+    return computeRawVarint32Size(value.length) + value.length;
   }
 
   /**
@@ -753,43 +719,11 @@ public final class CodedOutputStreamMicro {
   // =================================================================
 
   /**
-   * Internal helper that writes the current buffer to the output. The
-   * buffer position is reset to its initial value when this returns.
-   */
-  private void refreshBuffer() throws IOException {
-    if (output == null) {
-      // We're writing to a single buffer.
-      throw new OutOfSpaceException();
-    }
-
-    // Since we have an output stream, this is our buffer
-    // and buffer offset == 0
-    output.write(buffer, 0, position);
-    position = 0;
-  }
-
-  /**
-   * Flushes the stream and forces any buffered bytes to be written.  This
-   * does not flush the underlying OutputStream.
-   */
-  public void flush() throws IOException {
-    if (output != null) {
-      refreshBuffer();
-    }
-  }
-
-  /**
    * If writing to a flat array, return the space left in the array.
    * Otherwise, throws {@code UnsupportedOperationException}.
    */
   public int spaceLeft() {
-    if (output == null) {
-      return limit - position;
-    } else {
-      throw new UnsupportedOperationException(
-        "spaceLeft() can only be called on CodedOutputStreams that are " +
-        "writing to a flat array.");
-    }
+    return limit - position;
   }
 
   /**
@@ -814,16 +748,17 @@ public final class CodedOutputStreamMicro {
   public static class OutOfSpaceException extends IOException {
     private static final long serialVersionUID = -6947486886997889499L;
 
-    OutOfSpaceException() {
+    OutOfSpaceException(int position, int limit) {
       super("CodedOutputStream was writing to a flat byte array and ran " +
-            "out of space.");
+            "out of space (pos " + position + " limit " + limit + ").");
     }
   }
 
   /** Write a single byte. */
   public void writeRawByte(final byte value) throws IOException {
     if (position == limit) {
-      refreshBuffer();
+      // We're writing to a single buffer.
+      throw new OutOfSpaceException(position, limit);
     }
 
     buffer[position++] = value;
@@ -847,38 +782,20 @@ public final class CodedOutputStreamMicro {
       System.arraycopy(value, offset, buffer, position, length);
       position += length;
     } else {
-      // Write extends past current buffer.  Fill the rest of this buffer and
-      // flush.
-      final int bytesWritten = limit - position;
-      System.arraycopy(value, offset, buffer, position, bytesWritten);
-      offset += bytesWritten;
-      length -= bytesWritten;
-      position = limit;
-      refreshBuffer();
-
-      // Now deal with the rest.
-      // Since we have an output stream, this is our buffer
-      // and buffer offset == 0
-      if (length <= limit) {
-        // Fits in new buffer.
-        System.arraycopy(value, offset, buffer, 0, length);
-        position = length;
-      } else {
-        // Write is very big.  Let's do it all at once.
-        output.write(value, offset, length);
-      }
+      // We're writing to a single buffer.
+      throw new OutOfSpaceException(position, limit);
     }
   }
 
   /** Encode and write a tag. */
   public void writeTag(final int fieldNumber, final int wireType)
                        throws IOException {
-    writeRawVarint32(WireFormatMicro.makeTag(fieldNumber, wireType));
+    writeRawVarint32(WireFormatNano.makeTag(fieldNumber, wireType));
   }
 
   /** Compute the number of bytes that would be needed to encode a tag. */
   public static int computeTagSize(final int fieldNumber) {
-    return computeRawVarint32Size(WireFormatMicro.makeTag(fieldNumber, 0));
+    return computeRawVarint32Size(WireFormatNano.makeTag(fieldNumber, 0));
   }
 
   /**

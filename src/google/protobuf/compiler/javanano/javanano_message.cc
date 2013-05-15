@@ -34,9 +34,9 @@
 
 #include <algorithm>
 #include <google/protobuf/stubs/hash.h>
-#include <google/protobuf/compiler/javamicro/javamicro_message.h>
-#include <google/protobuf/compiler/javamicro/javamicro_enum.h>
-#include <google/protobuf/compiler/javamicro/javamicro_helpers.h>
+#include <google/protobuf/compiler/javanano/javanano_message.h>
+#include <google/protobuf/compiler/javanano/javanano_enum.h>
+#include <google/protobuf/compiler/javanano/javanano_helpers.h>
 #include <google/protobuf/stubs/strutil.h>
 #include <google/protobuf/io/printer.h>
 #include <google/protobuf/io/coded_stream.h>
@@ -46,7 +46,7 @@
 namespace google {
 namespace protobuf {
 namespace compiler {
-namespace javamicro {
+namespace javanano {
 
 using internal::WireFormat;
 using internal::WireFormatLite;
@@ -88,52 +88,6 @@ string UniqueFileScopeIdentifier(const Descriptor* descriptor) {
   return "static_" + StringReplace(descriptor->full_name(), ".", "_", true);
 }
 
-// Returns true if the message type has any required fields.  If it doesn't,
-// we can optimize out calls to its isInitialized() method.
-//
-// already_seen is used to avoid checking the same type multiple times
-// (and also to protect against recursion).
-static bool HasRequiredFields(
-    const Descriptor* type,
-    hash_set<const Descriptor*>* already_seen) {
-  if (already_seen->count(type) > 0) {
-    // The type is already in cache.  This means that either:
-    // a. The type has no required fields.
-    // b. We are in the midst of checking if the type has required fields,
-    //    somewhere up the stack.  In this case, we know that if the type
-    //    has any required fields, they'll be found when we return to it,
-    //    and the whole call to HasRequiredFields() will return true.
-    //    Therefore, we don't have to check if this type has required fields
-    //    here.
-    return false;
-  }
-  already_seen->insert(type);
-
-  // If the type has extensions, an extension with message type could contain
-  // required fields, so we have to be conservative and assume such an
-  // extension exists.
-  if (type->extension_range_count() > 0) return true;
-
-  for (int i = 0; i < type->field_count(); i++) {
-    const FieldDescriptor* field = type->field(i);
-    if (field->is_required()) {
-      return true;
-    }
-    if (field->cpp_type() == FieldDescriptor::CPPTYPE_MESSAGE) {
-      if (HasRequiredFields(field->message_type(), already_seen)) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-static bool HasRequiredFields(const Descriptor* type) {
-  hash_set<const Descriptor*> already_seen;
-  return HasRequiredFields(type, &already_seen);
-}
-
 }  // namespace
 
 // ===================================================================
@@ -165,7 +119,7 @@ void MessageGenerator::GenerateStaticVariableInitializers(
   }
 
   if (descriptor_->extension_count() != 0) {
-    GOOGLE_LOG(FATAL) << "Extensions not supported in MICRO_RUNTIME\n";
+    GOOGLE_LOG(FATAL) << "Extensions not supported in NANO_RUNTIME\n";
   }
 }
 
@@ -183,7 +137,7 @@ void MessageGenerator::Generate(io::Printer* printer) {
 
   if ((descriptor_->extension_count() != 0)
       || (descriptor_->extension_range_count() != 0)) {
-    GOOGLE_LOG(FATAL) << "Extensions not supported in MICRO_RUNTIME\n";
+    GOOGLE_LOG(FATAL) << "Extensions not supported in NANO_RUNTIME\n";
   }
 
   // Note: Fields (which will be emitted in the loop, below) may have the same names as fields in
@@ -192,11 +146,12 @@ void MessageGenerator::Generate(io::Printer* printer) {
   printer->Print(
     "@SuppressWarnings(\"hiding\")\n"
     "public $modifiers$ final class $classname$ extends\n"
-    "    com.google.protobuf.micro.MessageMicro {\n",
+    "    com.google.protobuf.nano.MessageNano {\n",
     "modifiers", is_own_file ? "" : "static",
     "classname", descriptor_->name());
   printer->Indent();
   printer->Print(
+    "public static final $classname$ EMPTY_ARRAY[] = {};\n"
     "public $classname$() {}\n"
     "\n",
     "classname", descriptor_->name());
@@ -213,15 +168,11 @@ void MessageGenerator::Generate(io::Printer* printer) {
   // Fields
   for (int i = 0; i < descriptor_->field_count(); i++) {
     PrintFieldComment(printer, descriptor_->field(i));
-    printer->Print("public static final int $constant_name$ = $number$;\n",
-      "constant_name", FieldConstantName(descriptor_->field(i)),
-      "number", SimpleItoa(descriptor_->field(i)->number()));
     field_generators_.get(descriptor_->field(i)).GenerateMembers(printer);
     printer->Print("\n");
   }
 
   GenerateClear(printer);
-  GenerateIsInitialized(printer);
   GenerateMessageSerializationMethods(printer);
   GenerateMergeFromMethods(printer);
   GenerateParseFromMethods(printer);
@@ -238,19 +189,19 @@ GenerateMessageSerializationMethods(io::Printer* printer) {
     SortFieldsByNumber(descriptor_));
 
   if (descriptor_->extension_range_count() != 0) {
-    GOOGLE_LOG(FATAL) << "Extensions not supported in MICRO_RUNTIME\n";
+    GOOGLE_LOG(FATAL) << "Extensions not supported in NANO_RUNTIME\n";
   }
 
   // writeTo only throws an exception if it contains one or more fields to write
   if (descriptor_->field_count() > 0) {
     printer->Print(
       "@Override\n"
-      "public void writeTo(com.google.protobuf.micro.CodedOutputStreamMicro output)\n"
+      "public void writeTo(com.google.protobuf.nano.CodedOutputByteBufferNano output)\n"
       "                    throws java.io.IOException {\n");
   } else {
     printer->Print(
       "@Override\n"
-      "public void writeTo(com.google.protobuf.micro.CodedOutputStreamMicro output) {\n");
+      "public void writeTo(com.google.protobuf.nano.CodedOutputByteBufferNano output) {\n");
   }
   printer->Indent();
 
@@ -294,21 +245,13 @@ void MessageGenerator::GenerateMergeFromMethods(io::Printer* printer) {
   scoped_array<const FieldDescriptor*> sorted_fields(
     SortFieldsByNumber(descriptor_));
 
-  if (params_.java_use_vector()) {
-    printer->Print(
-      "@Override\n"
-      "public com.google.protobuf.micro.MessageMicro mergeFrom(\n"
-      "    com.google.protobuf.micro.CodedInputStreamMicro input)\n"
-      "    throws java.io.IOException {\n",
-      "classname", descriptor_->name());
-  } else {
-    printer->Print(
-      "@Override\n"
-      "public $classname$ mergeFrom(\n"
-      "    com.google.protobuf.micro.CodedInputStreamMicro input)\n"
-      "    throws java.io.IOException {\n",
-      "classname", descriptor_->name());
-  }
+  printer->Print(
+    "@Override\n"
+    "public $classname$ mergeFrom(\n"
+    "    com.google.protobuf.nano.CodedInputByteBufferNano input)\n"
+    "    throws java.io.IOException {\n",
+    "classname", descriptor_->name());
+
   printer->Indent();
 
   printer->Print(
@@ -324,7 +267,7 @@ void MessageGenerator::GenerateMergeFromMethods(io::Printer* printer) {
     "case 0:\n"          // zero signals EOF / limit reached
     "  return this;\n"
     "default: {\n"
-    "  if (!parseUnknownField(input, tag)) {\n"
+    "  if (!com.google.protobuf.nano.WireFormatNano.parseUnknownField(input, tag)) {\n"
     "    return this;\n"   // it's an endgroup tag
     "  }\n"
     "  break;\n"
@@ -368,12 +311,12 @@ GenerateParseFromMethods(io::Printer* printer) {
   //   for code size.
   printer->Print(
     "public $static$ $classname$ parseFrom(byte[] data)\n"
-    "    throws com.google.protobuf.micro.InvalidProtocolBufferMicroException {\n"
-    "  return ($classname$) (new $classname$().mergeFrom(data));\n"
+    "    throws com.google.protobuf.nano.InvalidProtocolBufferNanoException {\n"
+    "  return ($classname$) com.google.protobuf.nano.MessageNano.mergeFrom(new $classname$(), data);\n"
     "}\n"
     "\n"
     "public $static$ $classname$ parseFrom(\n"
-    "        com.google.protobuf.micro.CodedInputStreamMicro input)\n"
+    "        com.google.protobuf.nano.CodedInputByteBufferNano input)\n"
     "    throws java.io.IOException {\n"
     "  return new $classname$().mergeFrom(input);\n"
     "}\n"
@@ -397,9 +340,20 @@ void MessageGenerator::GenerateClear(io::Printer* printer) {
   for (int i = 0; i < descriptor_->field_count(); i++) {
     const FieldDescriptor* field = descriptor_->field(i);
 
-    printer->Print(
-      "clear$name$();\n",
-      "name", UnderscoresToCapitalizedCamelCase(field));
+    if (field->type() == FieldDescriptor::TYPE_BYTES &&
+        !field->default_value_string().empty()) {
+      // Need to clone the default value because it is of a mutable
+      // type.
+      printer->Print(
+        "$name$ = $default$.clone();\n",
+        "name", UnderscoresToCamelCase(field),
+        "default", DefaultValue(params_, field));
+    } else {
+      printer->Print(
+        "$name$ = $default$;\n",
+        "name", UnderscoresToCamelCase(field),
+        "default", DefaultValue(params_, field));
+    }
   }
 
   printer->Outdent();
@@ -410,81 +364,9 @@ void MessageGenerator::GenerateClear(io::Printer* printer) {
     "\n");
 }
 
-
-void MessageGenerator::GenerateIsInitialized(io::Printer* printer) {
-  printer->Print(
-    "public final boolean isInitialized() {\n");
-  printer->Indent();
-
-  // Check that all required fields in this message are set.
-  // TODO(kenton):  We can optimize this when we switch to putting all the
-  //   "has" fields into a single bitfield.
-  for (int i = 0; i < descriptor_->field_count(); i++) {
-    const FieldDescriptor* field = descriptor_->field(i);
-
-    if (field->is_required()) {
-      printer->Print(
-        "if (!has$name$) return false;\n",
-        "name", UnderscoresToCapitalizedCamelCase(field));
-    }
-  }
-
-  // Now check that all embedded messages are initialized.
-  for (int i = 0; i < descriptor_->field_count(); i++) {
-    const FieldDescriptor* field = descriptor_->field(i);
-    if (field->cpp_type() == FieldDescriptor::CPPTYPE_MESSAGE &&
-        HasRequiredFields(field->message_type())) {
-      switch (field->label()) {
-        case FieldDescriptor::LABEL_REQUIRED:
-          printer->Print(
-            "if (!get$name$().isInitialized()) return false;\n",
-            "type", ClassName(params_, field->message_type()),
-            "name", UnderscoresToCapitalizedCamelCase(field));
-          break;
-        case FieldDescriptor::LABEL_OPTIONAL:
-          printer->Print(
-            "if (has$name$()) {\n"
-            "  if (!get$name$().isInitialized()) return false;\n"
-            "}\n",
-            "type", ClassName(params_, field->message_type()),
-            "name", UnderscoresToCapitalizedCamelCase(field));
-          break;
-        case FieldDescriptor::LABEL_REPEATED:
-          if (params_.java_use_vector()) {
-            printer->Print(
-              "for (int i = 0; i < get$name$List().size(); i++) {\n"
-              "  if (get$name$(i).isInitialized()) return false;\n"
-              "}\n",
-              "type", ClassName(params_, field->message_type()),
-              "name", UnderscoresToCapitalizedCamelCase(field));
-          } else {
-            printer->Print(
-              "for ($type$ element : get$name$List()) {\n"
-              "  if (!element.isInitialized()) return false;\n"
-              "}\n",
-              "type", ClassName(params_, field->message_type()),
-              "name", UnderscoresToCapitalizedCamelCase(field));
-          }
-          break;
-      }
-    }
-  }
-
-  if (descriptor_->extension_range_count() > 0) {
-    printer->Print(
-      "if (!extensionsAreInitialized()) return false;\n");
-  }
-
-  printer->Outdent();
-  printer->Print(
-    "  return true;\n"
-    "}\n"
-    "\n");
-}
-
 // ===================================================================
 
-}  // namespace javamicro
+}  // namespace javanano
 }  // namespace compiler
 }  // namespace protobuf
 }  // namespace google
